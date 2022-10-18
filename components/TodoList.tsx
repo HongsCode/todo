@@ -1,9 +1,11 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components'
 import palette from '../styles/palette';
 import { TodoType } from '../types/todo';
 import TrashCanIcon from '../public/statics/svg/trash_can.svg'
 import CheckMarkIcon from '../public/statics/svg/check_mark.svg'
+import { checkTodoAPI, deleteTodoAPI } from '../lib/api/todos';
+import { useRouter } from 'next/router';
 
 const Container = styled.div`
     width:100%;
@@ -111,7 +113,7 @@ const Container = styled.div`
               width:20px;
               height:20px;
               border-radius: 50%;
-              border:1px solid ${palette.gray}
+              border:1px solid ${palette.gray};
               backgroud-color:trasparent;
               outline:none 
             }
@@ -125,6 +127,8 @@ interface TodoListProps {
 }
 //const TodoList: React.FunctionComponent = ({ todos }: TodoListProps) => {
 const TodoList: React.FC<TodoListProps> = ({ todos }) => {
+    const router = useRouter()
+    const [localTodos, setLocalTodos] = useState(todos)
     const getTodoColorNums = useCallback(() => {
         let red = 0
         let orange = 0
@@ -133,7 +137,7 @@ const TodoList: React.FC<TodoListProps> = ({ todos }) => {
         let blue = 0
         let navy = 0
 
-        todos.forEach((todo) => {
+        localTodos.forEach((todo) => {
             if (todo.color === 'red') {
                 red += 1
             }
@@ -157,11 +161,39 @@ const TodoList: React.FC<TodoListProps> = ({ todos }) => {
         return { red, orange, yellow, green, blue, navy }
     }, [todos])
     const todoColorNums = useMemo(getTodoColorNums, [todos])
+
+    const checkTodo = async (id: number) => {
+        try {
+            await checkTodoAPI(id)
+            //router.reload()
+            const newTodos = localTodos.map((todo) => {
+                if (todo.id === id) {
+                    return { ...todo, checked: !todo.checked }
+                }
+                return todo
+            })
+            console.log(JSON.stringify(newTodos))
+            setLocalTodos(newTodos)
+        } catch (e) {
+            console.log(e)
+        }
+    }
+
+    const delteTodo = async (id: number) => {
+        try {
+            await deleteTodoAPI(id)
+            const newTodos = localTodos.filter((todo) => todo.id !== id)
+            setLocalTodos(newTodos)
+            console.log('삭제했습니다.')
+        } catch (e) {
+            console.log(e)
+        }
+    }
     return (
         <Container>
             <div className='todo-list-header'>
                 <p className='todo-list-last-todo'>
-                    남은 TODO<span>{todos.length}개</span>
+                    남은 TODO<span>{localTodos.length}개</span>
                 </p>
                 <div className='todo-list-header-colors'>
                     {Object.keys(todoColorNums).map((color, index) => (
@@ -174,7 +206,7 @@ const TodoList: React.FC<TodoListProps> = ({ todos }) => {
                 </div>
             </div>
             <ul className='todo-list'>
-                {todos.map((todo) => (
+                {localTodos.map((todo) => (
                     <li className='todo-item' key={todo.id}>
                         <div className='todo-left-side'>
                             <div className={`todo-color-block bg-${todo.color}`} />
@@ -186,16 +218,16 @@ const TodoList: React.FC<TodoListProps> = ({ todos }) => {
                         <div className='todo-right-side'>
                             {todo.checked && (
                                 <>
-                                    <TrashCanIcon className='todo-trash-can' onClick={()=>{}} />
-                                    <CheckMarkIcon className='todo-check-mark' onClick={()=>{}} />
+                                    <TrashCanIcon className='todo-trash-can' onClick={() => { delteTodo(todo.id) }} />
+                                    <CheckMarkIcon className='todo-check-mark' onClick={() => { checkTodo(todo.id) }} />
                                 </>
                             )}
                             {!todo.checked && (
                                 <button
                                     type='button'
                                     className='todo-button'
-                                    onClick={() => {}}
-                                    />
+                                    onClick={() => { checkTodo(todo.id) }}
+                                />
                             )}
                         </div>
                     </li>
